@@ -373,7 +373,7 @@
             let count = 0;
             for(const name of all) {
                 try {
-                    const obj = await loader.loadAsync(`obj/${encodeURIComponent(name)}.obj`);
+                    const obj = await loader.loadAsync(`model/${encodeURIComponent(name)}.obj`);
                     modelData.set(name, processModel(obj));
                     count++;
                     document.getElementById('load-text').innerText = `SYNCHRONIZING: ${Math.floor(count/all.length*100)}%`;
