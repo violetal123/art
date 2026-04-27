@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>声纹窑变·手势重构版 | Sonic Ceramic Pro v9.6</title>
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@200;400;500;900&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/math/MeshSurfaceSampler.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+
+    <style>
+        :root { 
+            --accent: #c4a173; /* 统一更新为要求的哑光金 */
+            --accent-glow: rgba(196, 161, 115, 0.4);
+            --bg: #000000; 
+        }
+
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; 
+            background: radial-gradient(circle at center, #0a0d14 0%, #000000 100%); 
+            color: #fff; font-family: 'Noto Serif SC', serif; 
+        }
+        
+        /* 保持深色噪点背景 */
+        body::before {
+            content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+            background: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noise"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noise)" opacity="0.08"/%3E%3C/svg%3E');
+            mix-blend-mode: overlay;
+        }
+
+        canvas#webgl { position: fixed; inset: 0; z-index: 1; outline: none; filter: contrast(1.1) brightness(1.15); }
+
+        /* Main Left UI - 极简排版重塑 */
+        #main-left {
+            position: fixed; left: 5vw; top: 12vh; bottom: 8vh; z-index: 100;
+            display: flex; flex-direction: column; justify-content: space-between; pointer-events: none;
+        }
+        
+        /* 标题与副标题：左上角并排、竖排、底部对齐 */
+        .title-group { 
+            display: flex; align-items: flex-end; gap: 25px; 
+        }
+        
+        #v-title {
+            font-family: '宋体'; font-size: 6rem; color: #c4a173;
+            writing-mode: vertical-rl; text-orientation: mixed; margin: 0; line-height: 1; 
+            text-shadow: 0 0 40px var(--accent-glow), 0 2px 10px rgba(0,0,0,0.8);
+            letter-spacing: 15px; /* 加大字间距 */
+            transition: opacity 0.5s ease;
+        }
+        
+        .sub-title {
+            writing-mode: vertical-rl; text-orientation: mixed;
+            font-size: 0.95rem; letter-spacing: 0.7em; opacity: 0.85;
+            color: #ddd; padding-bottom: 8px; /* 微调确保视觉底部完全平齐 */
+            text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+        }
+
+        /* 底部容器：横向说明文案与操作按钮 */
+        .bottom-group {
+            display: flex; flex-direction: column; gap: 40px; margin-bottom: 20px;
+        }
+
+        #desc-text {
+            max-width: 300px; /* 限制最大宽度以保证阅读舒适度 */
+            font-size: 0.85rem; line-height: 2.2; opacity: 0.85; 
+            letter-spacing: 1.5px; color: #ddd; 
+            text-shadow: 0 2px 6px rgba(0,0,0,0.9); /* 确保粒子穿梭时文字清晰 */
+            transition: opacity 0.5s ease;
+        }
+        
+        .explore-btn-container {
+            pointer-events: auto; cursor: pointer; display: flex; align-items: center; gap: 15px;
+            transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .explore-btn-container:hover { transform: translateX(8px); }
+        .explore-btn-container:hover .text-ch { text-shadow: 0 0 15px var(--accent-glow); }
+        .explore-btn-container .text-ch { font-size: 1rem; color: var(--accent); display: block; letter-spacing: 3px; font-weight: 500;}
+        .explore-btn-container .text-en { font-family: 'Orbitron'; font-size: 0.55rem; color: var(--accent); letter-spacing: 2px; opacity: 0.7; display: block; margin-top: 6px;}
+
+        /* Gesture Guide */
+        #gesture-guide {
+            position: fixed; right: 50px; top: 10vh; z-index: 100; display: flex; flex-direction: column; gap: 35px; pointer-events: none;
+        }
+        .gesture-item { display: flex; align-items: center; gap: 20px; }
+        .gesture-icon {
+            width: 44px; height: 44px; color: var(--accent); display: flex; justify-content: center; align-items: center;
+            border: 1px solid rgba(196,161,115,0.25); border-radius: 50%; box-shadow: inset 0 0 15px rgba(196,161,115,0.05);
+            background: rgba(0,0,0,0.3);
+        }
+        .gesture-icon svg { width: 20px; height: 20px; }
+        .gesture-text { display: flex; flex-direction: column; gap: 8px; }
+        .g-title { font-size: 0.9rem; color: var(--accent); letter-spacing: 2px; font-weight: 400;}
+        .g-desc { font-size: 0.75rem; color: rgba(255,255,255,0.5); letter-spacing: 1.5px; font-weight: 200;}
+
+        /* Sensing Field */
+        #monitor-panel {
+            position: fixed; right: 40px; bottom: 40px; width: 330px;
+            background: rgba(8, 9, 12, 0.65); backdrop-filter: blur(25px);
+            border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; z-index: 200; padding: 25px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+        }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .panel-title { font-family: 'Orbitron'; font-size: 0.65rem; letter-spacing: 5px; color: var(--accent); opacity: 0.8; font-weight: 700;}
+        .wave-icon { display: flex; gap: 3px; align-items: center; height: 16px; }
+        .w-bar { width: 2px; background: var(--accent); transition: height 0.08s ease; height: 2px; opacity: 0.8;}
+
+        #cam-container {
+            width: 100%; height: 175px; position: relative; border: 1px solid rgba(255,255,255,0.04); border-radius: 4px;
+            overflow: hidden; cursor: pointer; background: #000;
+        }
+        .cam-corners::before, .cam-corners::after, .cam-corners-bottom::before, .cam-corners-bottom::after {
+            content: ''; position: absolute; width: 10px; height: 10px; border-color: rgba(196,161,115,0.5); border-style: solid; z-index: 20;
+        }
+        .cam-corners::before { top: 0; left: 0; border-width: 1px 0 0 1px; }
+        .cam-corners::after { top: 0; right: 0; border-width: 1px 1px 0 0; }
+        .cam-corners-bottom::before { bottom: 0; left: 0; border-width: 0 0 1px 1px; }
+        .cam-corners-bottom::after { bottom: 0; right: 0; border-width: 0 1px 1px 0; }
+
+        #cam-overlay {
+            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            font-size: 0.8rem; color: var(--accent); background: rgba(0,0,0,0.85);
+            z-index: 10; transition: 0.5s; pointer-events: none; letter-spacing: 4px; font-weight: 200;
+        }
+        #cam-container.active #cam-overlay { opacity: 0; visibility: hidden; }
+        #input_video, #hand-canvas { position: absolute; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        #input_video { opacity: 0.4; filter: grayscale(100%) contrast(1.2); }
+        #hand-canvas { z-index: 5; }
+
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 18px; }
+        .panel-btn {
+            background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 12px 10px;
+            display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            text-align: left; color: #fff; position: relative; overflow: hidden;
+        }
+        .panel-btn:hover { border-color: var(--accent); background: rgba(196,161,115,0.04); box-shadow: 0 0 15px rgba(196,161,115,0.15); transform: translateY(-2px); }
+        .panel-btn input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+        .btn-icon { color: var(--accent); width: 20px; height: 20px; display: flex; justify-content: center; align-items: center; }
+        .btn-icon svg { width: 100%; height: 100%; }
+        .btn-zh { display: block; font-size: 0.8rem; margin-bottom: 4px; letter-spacing: 1px; font-weight: 400;}
+        .btn-en { display: block; font-family: 'Orbitron'; font-size: 0.45rem; letter-spacing: 1.5px; opacity: 0.5; }
+
+        /* Bottom Arc Track */
+        #bottom-arc {
+            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 50vw; height: 12vh; z-index: 10; pointer-events: none; opacity: 0.5;
+        }
+        #bottom-prompt {
+            position: fixed; bottom: 6.5vh; left: 50%; transform: translateX(-50%); z-index: 15;
+            display: flex; align-items: center; gap: 15px; color: rgba(255,255,255,0.7); font-size: 0.85rem; letter-spacing: 3px; pointer-events: none; font-weight: 200;
+        }
+        .track-icon {
+            width: 34px; height: 34px; border: 1px solid rgba(255,255,255,0.25); border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; color: var(--accent); background: rgba(0,0,0,0.5);
+        }
+        .track-icon svg { width: 18px; height: 18px; }
+
+        /* Gallery System */
+        #gallery-wrapper { position: fixed; bottom: 0; width: 100%; height: 350px; background: linear-gradient(to top, rgba(0,0,0,0.98) 80%, transparent); z-index: 500; transform: translateY(100%); transition: 0.8s cubic-bezier(0.16, 1, 0.3, 1); backdrop-filter: blur(15px); border-top: 1px solid rgba(255,255,255,0.05); }
+        #gallery-wrapper.active { transform: translateY(0); }
+        #hide-gallery-v { width: 100%; text-align: center; color: var(--accent); font-size: 2rem; cursor: pointer; padding: 15px 0; opacity: 0.5; transition: 0.3s; }
+        #hide-gallery-v:hover { opacity: 1; text-shadow: 0 0 15px var(--accent-glow); }
+        #category-nav { display: flex; justify-content: center; gap: 50px; margin-bottom: 35px; }
+        .cat-item { cursor: pointer; color: rgba(255,255,255,0.4); font-size: 0.95rem; letter-spacing: 4px; transition: 0.3s; padding-bottom: 5px; border-bottom: 1px solid transparent; }
+        .cat-item.active, .cat-item:hover { color: var(--accent); border-color: var(--accent); opacity: 1;}
+        #gallery-scroll { display: flex; overflow-x: auto; gap: 40px; padding: 0 80px 40px; }
+        #gallery-scroll::-webkit-scrollbar { display: none; }
+        .vessel-card { display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: 0.4s; opacity: 0.6; }
+        .vessel-card:hover { opacity: 1; transform: translateY(-12px); }
+        .vessel-card div { transition: 0.4s; }
+        .vessel-card:hover div { opacity: 0.8 !important; box-shadow: 0 0 25px var(--accent-glow); }
+
+        /* Entry Mask */
+        #entry-mask { position: fixed; inset: 0; background: #000; z-index: 2000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .loader-line { width: 300px; height: 1px; background: rgba(196,161,115,0.1); position: relative; overflow: hidden; }
+        .loader-line::after { content: ''; position: absolute; left: -100%; width: 100%; height: 100%; background: var(--accent); animation: loading 2.5s infinite cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes loading { 0% { left: -100%; } 100% { left: 100%; } }
+        .start-btn { 
+            background: transparent; border: 1px solid rgba(196,161,115,0.3); color: var(--accent); padding: 15px 30px; 
+            cursor: pointer; font-family: 'Orbitron'; font-size: 0.75rem; transition: 0.4s; letter-spacing: 4px; border-radius: 2px;
+        }
+        .start-btn:hover { background: rgba(196,161,115,0.1); box-shadow: 0 0 20px var(--accent-glow); }
+    </style>
+</head>
+<body>
+
+    <canvas id="webgl"></canvas>
+
+    <div id="entry-mask">
+        <div class="loader-line"></div>
+        <div id="load-text" style="margin-top:40px; font-family:'Orbitron'; font-size:0.7rem; color:var(--accent); letter-spacing:12px; opacity:0.8;">NEURAL LINK CALIBRATING</div>
+        <button id="start-btn" style="display:none; margin-top:60px;" class="start-btn">INITIATE CONNECTION</button>
+    </div>
+
+    <!-- Main Left Panel -->
+    <div id="main-left">
+        <!-- 标题组：左上角、竖排、底部对齐 -->
+        <div class="title-group">
+            <h1 id="v-title">天球瓶</h1>
+            <div class="sub-title">以声塑器&nbsp;&nbsp;·&nbsp;&nbsp;以器传音</div>
+        </div>
+        
+        <!-- 底部组：左下角文案与按钮 -->
+        <div class="bottom-group">
+            <div id="desc-text">
+                腹部浑圆如天，颈部挺拔如柱，承载着声音与空间的完美共鸣。
+            </div>
+            
+            <div class="explore-btn-container" onclick="document.getElementById('gallery-wrapper').classList.add('active')">
+                <div style="width:1px; height:32px; background:var(--accent); opacity:0.6;"></div>
+                <div>
+                    <span class="text-ch">器型总览</span>
+                    <span class="text-en">EXPLORE ALL</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gesture Guide -->
+    <div id="gesture-guide">
+        <div class="gesture-item">
+            <div class="gesture-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M5 12H2M22 12h-3"/></svg></div>
+            <div class="gesture-text">
+                <span class="g-title">双指捏合/拉伸</span>
+                <span class="g-desc">控制模型缩放</span>
+            </div>
+        </div>
+        <div class="gesture-item">
+            <div class="gesture-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></div>
+            <div class="gesture-text">
+                <span class="g-title">转动腕部</span>
+                <span class="g-desc">控制模型旋转</span>
+            </div>
+        </div>
+        <div class="gesture-item">
+            <div class="gesture-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V5.5A2.5 2.5 0 0 1 10.5 3 2.5 2.5 0 0 1 13 5.5V11M13 11v-1a2.5 2.5 0 0 1 5 0v5M18 15h.5a2.5 2.5 0 0 1 2.5 2.5v1.5a6 6 0 0 1-6 6h-2a6 6 0 0 1-6-6v-6.5a2.5 2.5 0 0 1 5 0V13"/></svg></div>
+            <div class="gesture-text">
+                <span class="g-title">指尖轻触 (食指对碰拇指)</span>
+                <span class="g-desc">快速切换器型</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sensing Field Monitor -->
+    <div id="monitor-panel">
+        <div class="panel-header">
+            <span class="panel-title">SENSING FIELD</span>
+            <span class="wave-icon" id="wave-icon">
+                <span class="w-bar"></span><span class="w-bar" style="height:5px"></span><span class="w-bar" style="height:9px"></span><span class="w-bar" style="height:4px"></span><span class="w-bar"></span>
+            </span>
+        </div>
+        <div id="cam-container" onclick="handleCamClick(this)">
+            <div class="cam-corners"></div>
+            <div class="cam-corners-bottom"></div>
+            <video id="input_video" playsinline></video>
+            <canvas id="hand-canvas"></canvas>
+            <div id="cam-overlay">点击激活手势交互</div>
+        </div>
+        <div class="btn-grid">
+            <label class="panel-btn">
+                <div class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg></div>
+                <div class="btn-texts">
+                    <span class="btn-zh">音频导入</span>
+                    <span class="btn-en">IMPORT AUDIO</span>
+                </div>
+                <input type="file" id="audio-input" accept="audio/*">
+            </label>
+            <button class="panel-btn" id="mic-btn">
+                <div class="btn-icon" id="mic-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12H3a9 9 0 0 0 8 8.94V23h2v-2.06a8.98 8.98 0 0 0 5.39-2"/></svg></div>
+                <div class="btn-texts">
+                    <span class="btn-zh">麦克风: 关</span>
+                    <span class="btn-en">MIC OFF</span>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <!-- Bottom Curve Track -->
+    <svg id="bottom-arc" viewBox="0 0 1000 200" preserveAspectRatio="none">
+        <path d="M 0 200 Q 500 0 1000 200" fill="none" stroke="rgba(196,161,115,0.25)" stroke-width="1.5" stroke-dasharray="2 8"/>
+    </svg>
+    <div id="bottom-prompt">
+        <div class="track-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V5.5A2.5 2.5 0 0 1 10.5 3 2.5 2.5 0 0 1 13 5.5V11M13 11v-1a2.5 2.5 0 0 1 5 0v5M18 15h.5a2.5 2.5 0 0 1 2.5 2.5v1.5a6 6 0 0 1-6 6h-2a6 6 0 0 1-6-6v-6.5a2.5 2.5 0 0 1 5 0V13"/></svg></div>
+        鼠标滑动，探索器型
+    </div>
+
+    <!-- Gallery Wrapper -->
+    <div id="gallery-wrapper">
+        <div id="hide-gallery-v" onclick="document.getElementById('gallery-wrapper').classList.remove('active')">∨</div>
+        <div id="category-nav"></div>
+        <div id="gallery-scroll"></div>
+    </div>
+
+    <script id="vshader" type="x-shader/x-vertex">
+        uniform float uTime; uniform float uVolume; uniform float uScatter;
+        attribute float aSize;
+        varying vec3 vColor; varying float vAlpha;
+        void main() {
+            vec3 pos = position;
+            vec3 dir = normalize(pos);
+            pos += dir * uScatter * (50.0 + uVolume * 150.0);
+            float h = (pos.y + 250.0) / 500.0;
+            float flow = sin(pos.y * 0.05 - uTime * 2.5) * 0.5 + 0.5;
+            float timeCycle = mod(uTime * 0.2, 3.0);
+            vec3 c1 = vec3(0.63, 0.32, 0.18); vec3 c2 = vec3(0.0, 0.85, 0.9);
+            vec3 c3 = vec3(0.1, 0.3, 0.85); vec3 c4 = vec3(0.5, 0.0, 0.6);
+            vec3 glaze;
+            if(timeCycle < 1.0) glaze = mix(mix(c1, c2, h), mix(c2, c3, h), smoothstep(0.0, 1.0, timeCycle));
+            else if(timeCycle < 2.0) glaze = mix(mix(c2, c3, h), mix(c3, c4, h), smoothstep(1.0, 2.0, timeCycle));
+            else glaze = mix(mix(c3, c4, h), mix(c1, c2, h), smoothstep(2.0, 3.0, timeCycle));
+            vColor = glaze * (1.2 + clamp(uVolume * 4.2, 0.0, 5.0) + flow * 0.3);
+            vAlpha = clamp(0.85 + flow * 0.15, 0.0, 1.0);
+            vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
+            gl_PointSize = aSize * (1100.0 / -mvPos.z) * (1.0 + uVolume * 1.6);
+            gl_Position = projectionMatrix * mvPos;
+        }
+    </script>
+
+    <script>
+        // 文案与器型映射库
+        const MODEL_DESCRIPTIONS = {
+            '赏瓶': '宫廷御用之器，颈部纤长，腹部浑圆，寓意“清廉”，尽显雍容气度。',
+            '橄榄瓶': '造型如橄榄般两头收缩、中腹饱满，线条流畅，流露出一份淡雅的文人气质。',
+            '天球瓶': '腹部浑圆如天，颈部挺拔如柱，承载着声音与空间的完美共鸣。',
+            '梅瓶': '小口、短颈、丰肩，是瓷器中最修长的审美典范，如雪中梅花，冷傲而俊美。',
+            '玉壶春瓶': '由诗句“玉壶先春”得名，曲线优美至极，是自然比例在窑火中的极致体现。',
+            '观音瓶': '因形似观音菩萨手中所持净瓶而得名，端庄秀丽，流露出沉静之美。',
+            '胆式瓶': '形如悬胆，重心低沉，呈现出一种稳重而内敛的视觉张力。',
+            '净瓶': '佛教圣物，瓶身纤细，代表着净化与新生的声纹波动。',
+            '琮式瓶': '仿周代玉琮而作，外方内圆，象征着天地的规矩与哲思的交会。',
+            '四方瓶': '四棱分明，刚劲挺拔，在方寸之间尽显工整与威严。',
+            '八角瓶': '八面受光，棱角圆润，光影在折线间跳跃，赋予声音更丰富的反射。',
+            '直筒瓶': '简练直白，毫无冗余，是极简主义美学在古代陶瓷中的先行者。',
+            '灯笼瓶': '形似宫灯，腹部宽绰，如月色映照下的点点灯火，温润而安详。',
+            '葫芦瓶': '上下相连，形似葫芦，寓意吉祥，在双球体间寻找频率的平衡。',
+            '蒜头瓶': '因瓶口形似蒜头而得名，收颈放腹，是极具韵律感的动态造型。',
+            '三管瓶': '瓶颈分设三管，器形奇特，代表着多重声部在同一容器内的交织。',
+            '贯耳瓶': '颈部饰双贯耳，模仿礼器投壶之形，兼具庄重感与装饰趣味。',
+            '花口瓶': '瓶口如繁花绽放，曲线婉转，让硬质的陶瓷拥有了花卉般的柔情。',
+            '转心瓶': '内外双层，机关巧妙，转动间是时间与声画同步的视觉奇迹。',
+            '执壶': '长流弯柄，原本用于倾倒佳酿，如今在手势中倾泻流动的频率。',
+            '棒槌瓶': '瓶身挺直如棒槌，刚健有力，是康熙朝瓷器雄浑风格的象征。',
+            '纸槌瓶': '仿自造纸所用的槌具，造型古朴，颈部长而有力，比例严谨。',
+            '长颈瓶': '颈部比例极大延展，拉长了空间的视觉感，宛如声音频率的悠长余韵。',
+            '弦纹瓶': '瓶身布满凸起的弦线，如古琴琴弦，赋予静态器型以节奏律动感。',
+            '柳叶瓶': '瓶身修长如柳叶，灵动秀气，是陶瓷中最为纤细飘逸的精品。',
+            '鹿耳尊': '双侧饰以灵动鹿耳，形态生动，代表着山林自然的生命气息。'
+        };
+
+        // 核心逻辑高度保留
+        const MODELS_CONFIG = {
+            '圆器': ['赏瓶', '橄榄瓶', '天球瓶', '梅瓶', '玉壶春瓶', '观音瓶', '胆式瓶', '净瓶'],
+            '方异': ['琮式瓶', '四方瓶', '八角瓶', '直筒瓶', '灯笼瓶'],
+            '巧饰': ['葫芦瓶', '蒜头瓶', '三管瓶', '贯耳瓶', '花口瓶', '转心瓶', '执壶'],
+            '长挺': ['棒槌瓶', '纸槌瓶', '长颈瓶', '弦纹瓶', '柳叶瓶', '鹿耳尊']
+        };
+        const modelData = new Map();
+        let scene, camera, renderer, points, blackHull, uniforms, hullUniforms, controls;
+        let audioCtx, analyser, dataArray, micStream, fileSource, smoothVol = 0;
+        let lastHandXLocal = 0, isPinchingNow = false, lastPinchTime = 0;
+        let isSensorInited = false;
+        let currentModelName = "天球瓶"; // 持久化当前器型，防止动画过渡期间出现抓取错位
+
+        async function loadAssets() {
+            const loader = new THREE.OBJLoader();
+            const all = Object.values(MODELS_CONFIG).flat();
+            let count = 0;
+            for(const name of all) {
+                try {
+                    const obj = await loader.loadAsync(`obj/${encodeURIComponent(name)}.obj`);
+                    modelData.set(name, processModel(obj));
+                    count++;
+                    document.getElementById('load-text').innerText = `SYNCHRONIZING: ${Math.floor(count/all.length*100)}%`;
+                } catch(e) { console.warn("Skip:", name); }
+            }
+            document.querySelector('.loader-line').style.display = 'none';
+            document.getElementById('load-text').style.display = 'none';
+            document.getElementById('start-btn').style.display = 'block';
+            initGalleryUI();
+        }
+
+        function processModel(obj) {
+            let mesh; obj.traverse(c => { if(c.isMesh) mesh = c; });
+            mesh.geometry.center();
+            const box = new THREE.Box3().setFromObject(mesh);
+            const size = box.getSize(new THREE.Vector3());
+            const sc = 550 / Math.max(size.x, size.y, size.z);
+            mesh.geometry.scale(sc, sc, sc);
+            const sampler = new THREE.MeshSurfaceSampler(mesh).build();
+            const count = 500000; 
+            const pos = new Float32Array(count * 3), siz = new Float32Array(count);
+            const _v = new THREE.Vector3();
+            for(let i=0; i<count; i++) {
+                sampler.sample(_v);
+                pos[i*3]=_v.x; pos[i*3+1]=_v.y; pos[i*3+2]=_v.z;
+                siz[i] = Math.random() * 1.6 + 1.2;
+            }
+            return { pos, siz, geo: mesh.geometry.clone() };
+        }
+
+        function initScene() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 1, 10000);
+            camera.position.set(0, 100, 1000);
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('webgl'), antialias: true, alpha: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.autoRotate = true; 
+            controls.autoRotateSpeed = 1.6;
+
+            hullUniforms = { uOpacity: { value: 0.95 } };
+            blackHull = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.ShaderMaterial({
+                uniforms: hullUniforms,
+                vertexShader: `void main(){ gl_Position=projectionMatrix*modelViewMatrix*vec4(position-normal*1.5,1.0); }`,
+                fragmentShader: `uniform float uOpacity; void main(){ gl_FragColor=vec4(0.04,0.05,0.06,uOpacity); }`,
+                transparent: true, side: THREE.DoubleSide
+            }));
+            blackHull.renderOrder = 1; scene.add(blackHull);
+
+            uniforms = { uTime: {value:0}, uVolume: {value:0}, uScatter: {value:0} };
+            points = new THREE.Points(new THREE.BufferGeometry(), new THREE.ShaderMaterial({
+                uniforms, vertexShader: document.getElementById('vshader').textContent,
+                fragmentShader: `varying vec3 vColor; varying float vAlpha; void main(){ 
+                    float d = distance(gl_PointCoord, vec2(0.5));
+                    if(d > 0.5) discard;
+                    gl_FragColor = vec4(vColor * pow(1.0-d*2.0, 1.6), vAlpha);
+                }`,
+                transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+            }));
+            points.renderOrder = 2; scene.add(points);
+            
+            selectModel("天球瓶");
+            animate();
+        }
+
+        function selectModel(name) {
+            const data = modelData.get(name);
+            if(!data) return;
+            
+            // 实时更新状态，解决手势极速触发带来的文字不同步问题
+            currentModelName = name;
+            
+            const titleEl = document.getElementById('v-title');
+            const descEl = document.getElementById('desc-text');
+            
+            if (titleEl && descEl) {
+                // 文字 0.5s 淡出过渡
+                titleEl.style.opacity = 0;
+                descEl.style.opacity = 0;
+                
+                setTimeout(() => {
+                    titleEl.innerText = name;
+                    descEl.innerText = MODEL_DESCRIPTIONS[name] || '';
+                    titleEl.style.opacity = 1;
+                    descEl.style.opacity = 1;
+                }, 500); // 对应 CSS 中设置的 0.5s transition
+            }
+
+            // 3D 渲染核心层立即响应更新
+            points.geometry.setAttribute('position', new THREE.BufferAttribute(data.pos, 3));
+            points.geometry.setAttribute('aSize', new THREE.BufferAttribute(data.siz, 1));
+            points.geometry.attributes.position.needsUpdate = true;
+            blackHull.geometry.dispose();
+            blackHull.geometry = data.geo;
+            uniforms.uScatter.value = 0;
+        }
+
+        function setupAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 128;
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            
+            document.getElementById('audio-input').onchange = (e) => {
+                const reader = new FileReader();
+                reader.onload = async (ev) => {
+                    const buf = await audioCtx.decodeAudioData(ev.target.result);
+                    if(fileSource) fileSource.stop();
+                    fileSource = audioCtx.createBufferSource();
+                    fileSource.buffer = buf;
+                    fileSource.connect(analyser);
+                    analyser.connect(audioCtx.destination);
+                    fileSource.start();
+                };
+                reader.readAsArrayBuffer(e.target.files[0]);
+            };
+
+            document.getElementById('mic-btn').onclick = async function() {
+                const zh = this.querySelector('.btn-zh');
+                const en = this.querySelector('.btn-en');
+                const icon = this.querySelector('.btn-icon');
+                if(micStream) {
+                    micStream.getTracks().forEach(t => t.stop()); micStream = null;
+                    zh.innerText = "麦克风: 关"; en.innerText = "MIC OFF";
+                    icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12H3a9 9 0 0 0 8 8.94V23h2v-2.06a8.98 8.98 0 0 0 5.39-2"/></svg>`;
+                } else {
+                    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    audioCtx.createMediaStreamSource(micStream).connect(analyser);
+                    zh.innerText = "麦克风: 开"; en.innerText = "MIC ON";
+                    icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>`;
+                }
+            };
+        }
+
+        function handleCamClick(el) {
+            if(!isSensorInited) {
+                el.classList.add('active');
+                initSensors();
+                isSensorInited = true;
+            }
+        }
+
+        function initSensors() {
+            const video = document.getElementById('input_video');
+            const canvas = document.getElementById('hand-canvas');
+            const ctx = canvas.getContext('2d');
+            const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+            hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
+            hands.onResults(res => {
+                if (!res || !res.multiHandLandmarks) return;
+                ctx.save(); ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (res.multiHandLandmarks.length > 0) {
+                    const lms = res.multiHandLandmarks[0];
+                    drawConnectors(ctx, lms, HAND_CONNECTIONS, {color: '#c4a173', lineWidth: 3});
+                    drawLandmarks(ctx, lms, {color: '#fff', radius: 1.5});
+                    const d = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
+                    const pinchDist = d(lms[4], lms[8]);
+                    const targetScale = THREE.MathUtils.mapLinear(pinchDist, 0.05, 0.4, 1.0, 3.2);
+                    points.scale.setScalar(THREE.MathUtils.lerp(points.scale.x, Math.max(1.0, targetScale), 0.15));
+                    blackHull.scale.copy(points.scale);
+                    
+                    const targetRotY = -(lms[9].x - 0.5) * Math.PI * 2.8;
+                    const targetRotX = (lms[9].y - 0.5) * Math.PI * 1.5;
+                    points.rotation.y = THREE.MathUtils.lerp(points.rotation.y, targetRotY, 0.1);
+                    points.rotation.x = THREE.MathUtils.lerp(points.rotation.x, targetRotX, 0.1);
+                    blackHull.rotation.copy(points.rotation);
+
+                    const now = Date.now();
+                    if (pinchDist < 0.04 && !isPinchingNow && (now - lastPinchTime > 1500)) {
+                        const keys = Array.from(modelData.keys());
+                        let idx = keys.indexOf(currentModelName); // 采用状态索引
+                        selectModel(keys[(idx + 1) % keys.length]);
+                        lastPinchTime = now;
+                    }
+                    isPinchingNow = pinchDist < 0.04;
+                    lastHandXLocal = lms[0].x;
+                } else {
+                    if (lastHandXLocal !== 0) {
+                        new TWEEN.Tween(points.rotation).to({x:0, y:0}, 1000).easing(TWEEN.Easing.Quadratic.Out).start();
+                        new TWEEN.Tween(points.scale).to({x:1, y:1, z:1}, 1000).easing(TWEEN.Easing.Quadratic.Out).start();
+                        new TWEEN.Tween(blackHull.rotation).to({x:0, y:0}, 1000).easing(TWEEN.Easing.Quadratic.Out).start();
+                        new TWEEN.Tween(blackHull.scale).to({x:1, y:1, z:1}, 1000).easing(TWEEN.Easing.Quadratic.Out).start();
+                        lastHandXLocal = 0; isPinchingNow = false;
+                    }
+                }
+                ctx.restore();
+            });
+            new Camera(video, { onFrame: async () => { canvas.width = video.videoWidth; canvas.height = video.videoHeight; await hands.send({image: video}); }}).start();
+        }
+
+        window.onresize = () => {
+            if (camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight; 
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        };
+
+        function animate() {
+            requestAnimationFrame(animate);
+            TWEEN.update();
+            uniforms.uTime.value += 0.015;
+            
+            if(analyser) {
+                analyser.getByteFrequencyData(dataArray);
+                let l = 0; for(let i = 0; i < 10; i++) l += dataArray[i]; 
+                smoothVol += (l / 15000 - smoothVol) * 0.1; /* 严格保留阈值逻辑 */
+                uniforms.uVolume.value = smoothVol;
+                
+                // 将音频数据映射到右上角波纹动态 Icon
+                const bars = document.querySelectorAll('.w-bar');
+                if(bars.length === 5) {
+                    bars[0].style.height = `${2 + (dataArray[2] || 0)/255 * 10}px`;
+                    bars[1].style.height = `${2 + (dataArray[5] || 0)/255 * 14}px`;
+                    bars[2].style.height = `${2 + (dataArray[8] || 0)/255 * 18}px`;
+                    bars[3].style.height = `${2 + (dataArray[11] || 0)/255 * 14}px`;
+                    bars[4].style.height = `${2 + (dataArray[14] || 0)/255 * 10}px`;
+                }
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function initGalleryUI() {
+            const nav = document.getElementById('category-nav');
+            Object.keys(MODELS_CONFIG).forEach((cat, i) => {
+                const el = document.createElement('div');
+                el.className = `cat-item ${i===0?'active':''}`;
+                el.innerText = cat;
+                el.onclick = () => {
+                    document.querySelectorAll('.cat-item').forEach(x => x.classList.remove('active'));
+                    el.classList.add('active');
+                    renderVessels(cat);
+                };
+                nav.appendChild(el);
+            });
+            renderVessels(Object.keys(MODELS_CONFIG)[0]);
+        }
+
+        function renderVessels(cat) {
+            const scroll = document.getElementById('gallery-scroll'); scroll.innerHTML = '';
+            MODELS_CONFIG[cat].forEach(name => {
+                const card = document.createElement('div');
+                card.className = 'vessel-card';
+                card.innerHTML = `<div style="width:40px;height:80px;background:var(--accent);opacity:0.3;clip-path:polygon(20% 0, 80% 0, 100% 100%, 0 100%);"></div><span style="margin-top:25px;font-size:0.75rem;letter-spacing:4px;color:var(--accent);">${name}</span>`;
+                card.onclick = () => { selectModel(name); document.getElementById('gallery-wrapper').classList.remove('active'); };
+                scroll.appendChild(card);
+            });
+        }
+
+        window.onload = loadAssets;
+        document.getElementById('start-btn').onclick = () => {
+            initScene(); setupAudio();
+            document.getElementById('entry-mask').style.opacity = 0;
+            setTimeout(() => document.getElementById('entry-mask').remove(), 1000);
+        };
+    </script>
+</body>
+</html>
