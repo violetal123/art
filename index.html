@@ -14,9 +14,12 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
 
+
+
+    
     <style>
         :root { 
-            --accent: #c4a173; /* 统一更新为要求的哑光金 */
+            --accent: #c4a173; 
             --accent-glow: rgba(196, 161, 115, 0.4);
             --bg: #000000; 
         }
@@ -27,7 +30,6 @@
             color: #fff; font-family: 'Noto Serif SC', serif; 
         }
         
-        /* 保持深色噪点背景 */
         body::before {
             content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
             background: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noise"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noise)" opacity="0.08"/%3E%3C/svg%3E');
@@ -36,43 +38,31 @@
 
         canvas#webgl { position: fixed; inset: 0; z-index: 1; outline: none; filter: contrast(1.1) brightness(1.15); }
 
-        /* Main Left UI - 极简排版重塑 */
         #main-left {
             position: fixed; left: 5vw; top: 12vh; bottom: 8vh; z-index: 100;
             display: flex; flex-direction: column; justify-content: space-between; pointer-events: none;
         }
         
-        /* 标题与副标题：左上角并排、竖排、底部对齐 */
-        .title-group { 
-            display: flex; align-items: flex-end; gap: 25px; 
-        }
+        .title-group { display: flex; align-items: flex-end; gap: 25px; }
         
         #v-title {
             font-family: '宋体'; font-size: 6rem; color: #c4a173;
             writing-mode: vertical-rl; text-orientation: mixed; margin: 0; line-height: 1; 
             text-shadow: 0 0 40px var(--accent-glow), 0 2px 10px rgba(0,0,0,0.8);
-            letter-spacing: 15px; /* 加大字间距 */
-            transition: opacity 0.5s ease;
+            letter-spacing: 15px; transition: opacity 0.5s ease;
         }
         
         .sub-title {
             writing-mode: vertical-rl; text-orientation: mixed;
             font-size: 0.95rem; letter-spacing: 0.7em; opacity: 0.85;
-            color: #ddd; padding-bottom: 8px; /* 微调确保视觉底部完全平齐 */
-            text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+            color: #ddd; padding-bottom: 8px; text-shadow: 0 2px 6px rgba(0,0,0,0.9);
         }
 
-        /* 底部容器：横向说明文案与操作按钮 */
-        .bottom-group {
-            display: flex; flex-direction: column; gap: 40px; margin-bottom: 20px;
-        }
+        .bottom-group { display: flex; flex-direction: column; gap: 40px; margin-bottom: 20px; }
 
         #desc-text {
-            max-width: 300px; /* 限制最大宽度以保证阅读舒适度 */
-            font-size: 0.85rem; line-height: 2.2; opacity: 0.85; 
-            letter-spacing: 1.5px; color: #ddd; 
-            text-shadow: 0 2px 6px rgba(0,0,0,0.9); /* 确保粒子穿梭时文字清晰 */
-            transition: opacity 0.5s ease;
+            max-width: 300px; font-size: 0.85rem; line-height: 2.2; opacity: 0.85; 
+            letter-spacing: 1.5px; color: #ddd; text-shadow: 0 2px 6px rgba(0,0,0,0.9); transition: opacity 0.5s ease;
         }
         
         .explore-btn-container {
@@ -84,7 +74,6 @@
         .explore-btn-container .text-ch { font-size: 1rem; color: var(--accent); display: block; letter-spacing: 3px; font-weight: 500;}
         .explore-btn-container .text-en { font-family: 'Orbitron'; font-size: 0.55rem; color: var(--accent); letter-spacing: 2px; opacity: 0.7; display: block; margin-top: 6px;}
 
-        /* Gesture Guide */
         #gesture-guide {
             position: fixed; right: 50px; top: 10vh; z-index: 100; display: flex; flex-direction: column; gap: 35px; pointer-events: none;
         }
@@ -99,7 +88,6 @@
         .g-title { font-size: 0.9rem; color: var(--accent); letter-spacing: 2px; font-weight: 400;}
         .g-desc { font-size: 0.75rem; color: rgba(255,255,255,0.5); letter-spacing: 1.5px; font-weight: 200;}
 
-        /* Sensing Field */
         #monitor-panel {
             position: fixed; right: 40px; bottom: 40px; width: 330px;
             background: rgba(8, 9, 12, 0.65); backdrop-filter: blur(25px);
@@ -146,7 +134,6 @@
         .btn-zh { display: block; font-size: 0.8rem; margin-bottom: 4px; letter-spacing: 1px; font-weight: 400;}
         .btn-en { display: block; font-family: 'Orbitron'; font-size: 0.45rem; letter-spacing: 1.5px; opacity: 0.5; }
 
-        /* Bottom Arc Track */
         #bottom-arc {
             position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
             width: 50vw; height: 12vh; z-index: 10; pointer-events: none; opacity: 0.5;
@@ -161,7 +148,6 @@
         }
         .track-icon svg { width: 18px; height: 18px; }
 
-        /* Gallery System */
         #gallery-wrapper { position: fixed; bottom: 0; width: 100%; height: 350px; background: linear-gradient(to top, rgba(0,0,0,0.98) 80%, transparent); z-index: 500; transform: translateY(100%); transition: 0.8s cubic-bezier(0.16, 1, 0.3, 1); backdrop-filter: blur(15px); border-top: 1px solid rgba(255,255,255,0.05); }
         #gallery-wrapper.active { transform: translateY(0); }
         #hide-gallery-v { width: 100%; text-align: center; color: var(--accent); font-size: 2rem; cursor: pointer; padding: 15px 0; opacity: 0.5; transition: 0.3s; }
@@ -176,7 +162,6 @@
         .vessel-card div { transition: 0.4s; }
         .vessel-card:hover div { opacity: 0.8 !important; box-shadow: 0 0 25px var(--accent-glow); }
 
-        /* Entry Mask */
         #entry-mask { position: fixed; inset: 0; background: #000; z-index: 2000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .loader-line { width: 300px; height: 1px; background: rgba(196,161,115,0.1); position: relative; overflow: hidden; }
         .loader-line::after { content: ''; position: absolute; left: -100%; width: 100%; height: 100%; background: var(--accent); animation: loading 2.5s infinite cubic-bezier(0.4, 0, 0.2, 1); }
@@ -186,32 +171,50 @@
             cursor: pointer; font-family: 'Orbitron'; font-size: 0.75rem; transition: 0.4s; letter-spacing: 4px; border-radius: 2px;
         }
         .start-btn:hover { background: rgba(196,161,115,0.1); box-shadow: 0 0 20px var(--accent-glow); }
+
+        /* 新增：音乐开关与加载画布样式 */
+        #bgm-toggle {
+            position: fixed; right: 40px; top: 40px; z-index: 2500;
+            display: flex; align-items: center; gap: 12px; cursor: pointer;
+            opacity: 0; transition: 0.8s ease; pointer-events: auto;
+        }
+        #bgm-toggle.visible { opacity: 1; }
+        .music-bars { display: flex; gap: 3px; align-items: flex-end; height: 13px; }
+        .m-bar { width: 2px; height: 100%; background: var(--accent); animation: musicWave 1.2s infinite ease-in-out; transform-origin: bottom; }
+        .m-bar:nth-child(2) { animation-delay: 0.2s; }
+        .m-bar:nth-child(3) { animation-delay: 0.4s; }
+        .m-bar.paused { animation-play-state: paused; height: 2px !important; }
+        @keyframes musicWave { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+        #loading-canvas { position: absolute; inset: 0; z-index: -1; }
     </style>
 </head>
 <body>
 
     <canvas id="webgl"></canvas>
 
+    <audio id="bgm" loop src="music.mp3"></audio>
+
+    <div id="bgm-toggle">
+        <span style="font-family:'Orbitron'; font-size:0.6rem; color:var(--accent); letter-spacing:2px; font-weight:700;">AMBIENT FLOW</span>
+        <div class="music-bars" id="music-bars">
+            <div class="m-bar"></div><div class="m-bar"></div><div class="m-bar"></div>
+        </div>
+    </div>
+
     <div id="entry-mask">
+        <canvas id="loading-canvas"></canvas>
         <div class="loader-line"></div>
         <div id="load-text" style="margin-top:40px; font-family:'Orbitron'; font-size:0.7rem; color:var(--accent); letter-spacing:12px; opacity:0.8;">NEURAL LINK CALIBRATING</div>
         <button id="start-btn" style="display:none; margin-top:60px;" class="start-btn">INITIATE CONNECTION</button>
     </div>
 
-    <!-- Main Left Panel -->
     <div id="main-left">
-        <!-- 标题组：左上角、竖排、底部对齐 -->
         <div class="title-group">
             <h1 id="v-title">天球瓶</h1>
             <div class="sub-title">以声塑器&nbsp;&nbsp;·&nbsp;&nbsp;以器传音</div>
         </div>
-        
-        <!-- 底部组：左下角文案与按钮 -->
         <div class="bottom-group">
-            <div id="desc-text">
-                腹部浑圆如天，颈部挺拔如柱，承载着声音与空间的完美共鸣。
-            </div>
-            
+            <div id="desc-text">腹部浑圆如天，颈部挺拔如柱，承载着声音与空间的完美共鸣。</div>
             <div class="explore-btn-container" onclick="document.getElementById('gallery-wrapper').classList.add('active')">
                 <div style="width:1px; height:32px; background:var(--accent); opacity:0.6;"></div>
                 <div>
@@ -222,7 +225,6 @@
         </div>
     </div>
 
-    <!-- Gesture Guide -->
     <div id="gesture-guide">
         <div class="gesture-item">
             <div class="gesture-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M5 12H2M22 12h-3"/></svg></div>
@@ -247,7 +249,6 @@
         </div>
     </div>
 
-    <!-- Sensing Field Monitor -->
     <div id="monitor-panel">
         <div class="panel-header">
             <span class="panel-title">SENSING FIELD</span>
@@ -281,7 +282,6 @@
         </div>
     </div>
 
-    <!-- Bottom Curve Track -->
     <svg id="bottom-arc" viewBox="0 0 1000 200" preserveAspectRatio="none">
         <path d="M 0 200 Q 500 0 1000 200" fill="none" stroke="rgba(196,161,115,0.25)" stroke-width="1.5" stroke-dasharray="2 8"/>
     </svg>
@@ -290,7 +290,6 @@
         鼠标滑动，探索器型
     </div>
 
-    <!-- Gallery Wrapper -->
     <div id="gallery-wrapper">
         <div id="hide-gallery-v" onclick="document.getElementById('gallery-wrapper').classList.remove('active')">∨</div>
         <div id="category-nav"></div>
@@ -323,7 +322,6 @@
     </script>
 
     <script>
-        // 文案与器型映射库
         const MODEL_DESCRIPTIONS = {
             '赏瓶': '宫廷御用之器，颈部纤长，腹部浑圆，寓意“清廉”，尽显雍容气度。',
             '橄榄瓶': '造型如橄榄般两头收缩、中腹饱满，线条流畅，流露出一份淡雅的文人气质。',
@@ -353,7 +351,6 @@
             '鹿耳尊': '双侧饰以灵动鹿耳，形态生动，代表着山林自然的生命气息。'
         };
 
-        // 核心逻辑高度保留
         const MODELS_CONFIG = {
             '圆器': ['赏瓶', '橄榄瓶', '天球瓶', '梅瓶', '玉壶春瓶', '观音瓶', '胆式瓶'],
             '方异': ['琮式瓶', '四方瓶', '八角瓶', '直筒瓶', '灯笼瓶'],
@@ -365,9 +362,80 @@
         let audioCtx, analyser, dataArray, micStream, fileSource, smoothVol = 0;
         let lastHandXLocal = 0, isPinchingNow = false, lastPinchTime = 0;
         let isSensorInited = false;
-        let currentModelName = "天球瓶"; // 持久化当前器型，防止动画过渡期间出现抓取错位
+        let currentModelName = "天球瓶";
+
+        // 新增：加载页粒子逻辑
+        function initLoadingInteraction() {
+            const canvas = document.getElementById('loading-canvas');
+            const ctx = canvas.getContext('2d');
+            let particles = [];
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            });
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+
+            class P {
+                constructor(x, y) {
+                    this.x = x; this.y = y;
+                    this.size = Math.random() * 2 + 0.5;
+                    this.vx = (Math.random() - 0.5) * 1.5;
+                    this.vy = (Math.random() - 0.5) * 1.5;
+                    this.life = 1.0;
+                }
+                update() { this.x += this.vx; this.y += this.vy; this.life -= 0.01; }
+                draw() {
+                    ctx.fillStyle = `rgba(196, 161, 115, ${this.life * 0.5})`;
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
+                }
+            }
+
+            canvas.addEventListener('mousemove', (e) => {
+                for(let i=0; i<5; i++) particles.push(new P(e.clientX, e.clientY));
+            });
+
+            function loop() {
+                if(!document.getElementById('entry-mask')) return;
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                particles.forEach((p, i) => {
+                    p.update(); p.draw();
+                    if(p.life <= 0) particles.splice(i, 1);
+                });
+                requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        // 新增：背景音乐控制
+        const bgm = document.getElementById('bgm');
+        function fadeOutBGM() {
+            if (bgm.paused) return;
+            const step = 0.05;
+            const interval = setInterval(() => {
+                if (bgm.volume > step) {
+                    bgm.volume -= step;
+                } else {
+                    bgm.pause();
+                    bgm.volume = 1;
+                    document.getElementById('music-bars').querySelectorAll('.m-bar').forEach(b => b.classList.add('paused'));
+                    clearInterval(interval);
+                }
+            }, 50);
+        }
+
+        function handleBGMControl() {
+            const toggle = document.getElementById('bgm-toggle');
+            const bars = document.getElementById('music-bars').querySelectorAll('.m-bar');
+            toggle.onclick = () => {
+                if(bgm.paused) {
+                    bgm.play(); bars.forEach(b => b.classList.remove('paused'));
+                } else {
+                    bgm.pause(); bars.forEach(b => b.classList.add('paused'));
+                }
+            };
+        }
 
         async function loadAssets() {
+            initLoadingInteraction();
             const loader = new THREE.OBJLoader();
             const all = Object.values(MODELS_CONFIG).flat();
             let count = 0;
@@ -444,27 +512,16 @@
         function selectModel(name) {
             const data = modelData.get(name);
             if(!data) return;
-            
-            // 实时更新状态，解决手势极速触发带来的文字不同步问题
             currentModelName = name;
-            
             const titleEl = document.getElementById('v-title');
             const descEl = document.getElementById('desc-text');
-            
             if (titleEl && descEl) {
-                // 文字 0.5s 淡出过渡
-                titleEl.style.opacity = 0;
-                descEl.style.opacity = 0;
-                
+                titleEl.style.opacity = 0; descEl.style.opacity = 0;
                 setTimeout(() => {
-                    titleEl.innerText = name;
-                    descEl.innerText = MODEL_DESCRIPTIONS[name] || '';
-                    titleEl.style.opacity = 1;
-                    descEl.style.opacity = 1;
-                }, 500); // 对应 CSS 中设置的 0.5s transition
+                    titleEl.innerText = name; descEl.innerText = MODEL_DESCRIPTIONS[name] || '';
+                    titleEl.style.opacity = 1; descEl.style.opacity = 1;
+                }, 500);
             }
-
-            // 3D 渲染核心层立即响应更新
             points.geometry.setAttribute('position', new THREE.BufferAttribute(data.pos, 3));
             points.geometry.setAttribute('aSize', new THREE.BufferAttribute(data.siz, 1));
             points.geometry.attributes.position.needsUpdate = true;
@@ -480,6 +537,7 @@
             dataArray = new Uint8Array(analyser.frequencyBinCount);
             
             document.getElementById('audio-input').onchange = (e) => {
+                fadeOutBGM(); // 导入时关闭 BGM
                 const reader = new FileReader();
                 reader.onload = async (ev) => {
                     const buf = await audioCtx.decodeAudioData(ev.target.result);
@@ -502,6 +560,7 @@
                     zh.innerText = "麦克风: 关"; en.innerText = "MIC OFF";
                     icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12H3a9 9 0 0 0 8 8.94V23h2v-2.06a8.98 8.98 0 0 0 5.39-2"/></svg>`;
                 } else {
+                    fadeOutBGM(); // 开启麦克风时关闭 BGM
                     micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     audioCtx.createMediaStreamSource(micStream).connect(analyser);
                     zh.innerText = "麦克风: 开"; en.innerText = "MIC ON";
@@ -511,11 +570,7 @@
         }
 
         function handleCamClick(el) {
-            if(!isSensorInited) {
-                el.classList.add('active');
-                initSensors();
-                isSensorInited = true;
-            }
+            if(!isSensorInited) { el.classList.add('active'); initSensors(); isSensorInited = true; }
         }
 
         function initSensors() {
@@ -536,30 +591,26 @@
                     const targetScale = THREE.MathUtils.mapLinear(pinchDist, 0.05, 0.4, 1.0, 3.2);
                     points.scale.setScalar(THREE.MathUtils.lerp(points.scale.x, Math.max(1.0, targetScale), 0.15));
                     blackHull.scale.copy(points.scale);
-                    
                     const targetRotY = -(lms[9].x - 0.5) * Math.PI * 2.8;
                     const targetRotX = (lms[9].y - 0.5) * Math.PI * 1.5;
                     points.rotation.y = THREE.MathUtils.lerp(points.rotation.y, targetRotY, 0.1);
                     points.rotation.x = THREE.MathUtils.lerp(points.rotation.x, targetRotX, 0.1);
                     blackHull.rotation.copy(points.rotation);
-
                     const now = Date.now();
                     if (pinchDist < 0.04 && !isPinchingNow && (now - lastPinchTime > 1500)) {
                         const keys = Array.from(modelData.keys());
-                        let idx = keys.indexOf(currentModelName); // 采用状态索引
+                        let idx = keys.indexOf(currentModelName);
                         selectModel(keys[(idx + 1) % keys.length]);
                         lastPinchTime = now;
                     }
                     isPinchingNow = pinchDist < 0.04;
                     lastHandXLocal = lms[0].x;
-                } else {
-                    if (lastHandXLocal !== 0) {
-                        new TWEEN.Tween(points.rotation).to({x:0, y:0}, 1000).easing(TWEEN.Easing.Quadratic.Out).start();
-                        new TWEEN.Tween(points.scale).to({x:1, y:1, z:1}, 1000).easing(TWEEN.Easing.Quadratic.Out).start();
-                        new TWEEN.Tween(blackHull.rotation).to({x:0, y:0}, 1000).easing(TWEEN.Easing.Quadratic.Out).start();
-                        new TWEEN.Tween(blackHull.scale).to({x:1, y:1, z:1}, 1000).easing(TWEEN.Easing.Quadratic.Out).start();
-                        lastHandXLocal = 0; isPinchingNow = false;
-                    }
+                } else if (lastHandXLocal !== 0) {
+                    new TWEEN.Tween(points.rotation).to({x:0, y:0}, 1000).easing(TWEEN.Easing.Quadratic.Out).start();
+                    new TWEEN.Tween(points.scale).to({x:1, y:1, z:1}, 1000).easing(TWEEN.Easing.Quadratic.Out).start();
+                    new TWEEN.Tween(blackHull.rotation).to({x:0, y:0}, 1000).easing(TWEEN.Easing.Quadratic.Out).start();
+                    new TWEEN.Tween(blackHull.scale).to({x:1, y:1, z:1}, 1000).easing(TWEEN.Easing.Quadratic.Out).start();
+                    lastHandXLocal = 0; isPinchingNow = false;
                 }
                 ctx.restore();
             });
@@ -578,14 +629,11 @@
             requestAnimationFrame(animate);
             TWEEN.update();
             uniforms.uTime.value += 0.015;
-            
             if(analyser) {
                 analyser.getByteFrequencyData(dataArray);
                 let l = 0; for(let i = 0; i < 10; i++) l += dataArray[i]; 
-                smoothVol += (l / 15000 - smoothVol) * 0.1; /* 严格保留阈值逻辑 */
+                smoothVol += (l / 15000 - smoothVol) * 0.1;
                 uniforms.uVolume.value = smoothVol;
-                
-                // 将音频数据映射到右上角波纹动态 Icon
                 const bars = document.querySelectorAll('.w-bar');
                 if(bars.length === 5) {
                     bars[0].style.height = `${2 + (dataArray[2] || 0)/255 * 10}px`;
@@ -595,7 +643,6 @@
                     bars[4].style.height = `${2 + (dataArray[14] || 0)/255 * 10}px`;
                 }
             }
-            
             controls.update();
             renderer.render(scene, camera);
         }
@@ -608,8 +655,7 @@
                 el.innerText = cat;
                 el.onclick = () => {
                     document.querySelectorAll('.cat-item').forEach(x => x.classList.remove('active'));
-                    el.classList.add('active');
-                    renderVessels(cat);
+                    el.classList.add('active'); renderVessels(cat);
                 };
                 nav.appendChild(el);
             });
@@ -630,6 +676,9 @@
         window.onload = loadAssets;
         document.getElementById('start-btn').onclick = () => {
             initScene(); setupAudio();
+            bgm.play(); // 默认开启 BGM
+            handleBGMControl();
+            document.getElementById('bgm-toggle').classList.add('visible');
             document.getElementById('entry-mask').style.opacity = 0;
             setTimeout(() => document.getElementById('entry-mask').remove(), 1000);
         };
